@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تذكرتي - Page One 1</title>
+<style>
+*{box-sizing:border-box;font-family:Tahoma}
+body{margin:0;background:#f2f4f8;padding-bottom:80px}
+.top-bar{display:flex;justify-content:space-between;padding:12px}
+.lang-btn{border:2px solid #0a1931;border-radius:8px;padding:6px 14px;background:#fff;font-weight:bold;cursor:pointer}
+.card{background:#fff;max-width:430px;margin:10px auto;padding:18px;border-radius:18px;box-shadow:0 8px 20px rgba(0,0,0,.1)}
+label{font-weight:bold;display:block;margin:15px 0 6px;color:#0a1931}
+.search-box{position:relative}
+.search-box input, .search-box select{width:100%;padding:13px 40px 13px 13px;border:2px solid #ddd;border-radius:12px;font-size:15px;outline:none}
+.search-box input:focus, .search-box select:focus{border-color:#ffcc00}
+.icon{position:absolute;right:12px;top:50%;transform:translateY(-50%)}
+.country-list{max-height:160px;overflow:auto;border:2px solid #eee;border-radius:10px;display:none;margin-top:6px}
+.country-list div{padding:10px;border-bottom:1px solid #eee;cursor:pointer}
+.country-list div:hover{background:#fff7cc}
+.row{display:flex;gap:8px}
+.row .code{flex:0 0 110px}
+.row .phone{flex:1}
+.error{color:#ff1a1a;font-size:12px;display:none;font-weight:bold;margin-top:5px}
+.offline-banner{display:none;background:#ff1a1a;color:#fff;text-align:center;padding:10px;border-radius:10px;margin-bottom:10px;font-weight:bold}
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:#0a1931;padding:12px;text-align:center}
+.next-btn{background:#ffcc00;color:#000;border:none;width:100%;max-width:430px;padding:14px;border-radius:12px;font-weight:bold;font-size:18px;cursor:pointer}
+.next-btn:disabled{background:#888;color:#fff}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <button class="lang-btn" id="langBtn" onclick="toggleLang()">en / ar</button>
+  <div style="font-size:12px;opacity:.6">الصفحة الأولى<br>page one 1</div>
+</div>
+
+<div class="card">
+  <div id="offlineBox" class="offline-banner">📵 لا يوجد إنترنت - لا يمكن المتابعة</div>
+
+  <label id="l1">اختر بلدك (الدول العربية)</label>
+  <div class="search-box">
+    <span class="icon">🔍</span>
+    <input type="text" id="countrySearch" placeholder="بحث عن الدول..." oninput="filterCountries()">
+    <input type="hidden" id="selectedCountry">
+    <div id="countryList" class="country-list"></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <select id="countrySelect" onchange="setCountry(this.value)" style="flex:1;padding:12px;border-radius:10px;border:2px solid #ddd">
+      <option value="">الدول ▼</option>
+    </select>
+    <button onclick="document.getElementById('countrySearch').focus()" style="padding:12px;border-radius:10px;border:2px solid #ddd;background:#fff">بحث</button>
+  </div>
+  <div id="e_country" class="error">⚠️ اختر بلدك أولاً</div>
+
+  <label id="l2">ادخل رقم الهاتف</label>
+  <div class="row">
+    <div class="search-box code">
+      <input type="text" id="codeSearch" value="+249" placeholder="+249" oninput="filterCodes()">
+      <div id="codeList" class="country-list" style="position:absolute;width:200%;z-index:10;background:#fff"></div>
+    </div>
+    <div class="search-box phone">
+      <input type="tel" id="phoneNum" placeholder="رقم الهاتف">
+    </div>
+  </div>
+  <div id="e_phone" class="error">⚠️ ادخل رقم الهاتف</div>
+
+  <p style="text-align:center;font-size:11px;color:#777;margin-top:20px" id="footerText">شريط المهام</p>
+</div>
+
+<div class="bottom-bar">
+  <button class="next-btn" id="nextBtn" onclick="goNext()">التالي →</button>
+</div>
+
+<script>
+// كل الدول العربية + أكوادها
+const arabCountries = [
+ {name:"السودان",en:"Sudan",code:"+249"},
+ {name:"مصر",en:"Egypt",code:"+20"},
+ {name:"السعودية",en:"Saudi Arabia",code:"+966"},
+ {name:"الإمارات",en:"UAE",code:"+971"},
+ {name:"قطر",en:"Qatar",code:"+974"},
+ {name:"الكويت",en:"Kuwait",code:"+965"},
+ {name:"البحرين",en:"Bahrain",code:"+973"},
+ {name:"عمان",en:"Oman",code:"+968"},
+ {name:"اليمن",en:"Yemen",code:"+967"},
+ {name:"الأردن",en:"Jordan",code:"+962"},
+ {name:"لبنان",en:"Lebanon",code:"+961"},
+ {name:"سوريا",en:"Syria",code:"+963"},
+ {name:"العراق",en:"Iraq",code:"+964"},
+ {name:"فلسطين",en:"Palestine",code:"+970"},
+ {name:"المغرب",en:"Morocco",code:"+212"},
+ {name:"الجزائر",en:"Algeria",code:"+213"},
+ {name:"تونس",en:"Tunisia",code:"+216"},
+ {name:"ليبيا",en:"Libya",code:"+218"},
+ {name:"موريتانيا",en:"Mauritania",code:"+222"},
+ {name:"الصومال",en:"Somalia",code:"+252"},
+ {name:"جيبوتي",en:"Djibouti",code:"+253"},
+ {name:"جزر القمر",en:"Comoros",code:"+269"}
+];
+
+let currentLang = "ar";
+
+// تعبئة القوائم
+const select = document.getElementById("countrySelect");
+arabCountries.forEach(c=>{
+  let o=document.createElement("option");
+  o.value=c.name+"|"+c.code;
+  o.textContent=c.name+" "+c.code;
+  select.appendChild(o);
+});
+
+function renderCountries(list){
+  const box=document.getElementById("countryList");
+  box.innerHTML="";
+  list.forEach(c=>{
+    let d=document.createElement("div");
+    d.textContent=c.name+" - "+c.code;
+    d.onclick=()=>{selectCountry(c);};
+    box.appendChild(d);
+  });
+  box.style.display = list.length ? "block":"none";
+}
+function filterCountries(){
+  let q=document.getElementById("countrySearch").value.trim();
+  let filtered=arabCountries.filter(c=>c.name.includes(q) || c.en.toLowerCase().includes(q.toLowerCase()) || c.code.includes(q));
+  renderCountries(filtered);
+}
+function selectCountry(c){
+  document.getElementById("countrySearch").value=c.name;
+  document.getElementById("selectedCountry").value=c.name;
+  document.getElementById("codeSearch").value=c.code;
+  document.getElementById("countryList").style.display="none";
+  localStorage.setItem("user_country",c.name);
+  localStorage.setItem("user_code",c.code);
+}
+function setCountry(val){
+  if(!val) return;
+  let [name,code]=val.split("|");
+  document.getElementById("countrySearch").value=name;
+  document.getElementById("selectedCountry").value=name;
+  document.getElementById("codeSearch").value=code;
+  localStorage.setItem("user_country",name);
+  localStorage.setItem("user_code",code);
+}
+
+// أكواد الهاتف بحث
+function filterCodes(){
+  let q=document.getElementById("codeSearch").value.trim();
+  let box=document.getElementById("codeList");
+  let filtered=arabCountries.filter(c=>c.code.includes(q) || c.name.includes(q));
+  box.innerHTML="";
+  filtered.forEach(c=>{
+    let d=document.createElement("div");
+    d.textContent=c.name+" "+c.code;
+    d.onclick=()=>{document.getElementById("codeSearch").value=c.code; box.style.display="none";};
+    box.appendChild(d);
+  });
+  box.style.display = filtered.length ? "block":"none";
+}
+
+// تغيير اللغة en/ar
+function toggleLang(){
+  if(currentLang==="ar"){
+    currentLang="en";
+    document.documentElement.dir="ltr";
+    document.documentElement.lang="en";
+    document.getElementById("l1").innerText="Choose your country (Arab Countries)";
+    document.getElementById("l2").innerText="Enter phone number";
+    document.getElementById("countrySearch").placeholder="Search countries...";
+    document.getElementById("phoneNum").placeholder="Phone number";
+    document.getElementById("nextBtn").innerText="Next →";
+    document.getElementById("langBtn").innerText="ar / en";
+    document.getElementById("footerText").innerText="Task bar";
+  }else{
+    currentLang="ar";
+    document.documentElement.dir="rtl";
+    document.documentElement.lang="ar";
+    document.getElementById("l1").innerText="اختر بلدك (الدول العربية)";
+    document.getElementById("l2").innerText="ادخل رقم الهاتف";
+    document.getElementById("countrySearch").placeholder="بحث عن الدول...";
+    document.getElementById("phoneNum").placeholder="رقم الهاتف";
+    document.getElementById("nextBtn").innerText="التالي →";
+    document.getElementById("langBtn").innerText="en / ar";
+    document.getElementById("footerText").innerText="شريط المهام";
+  }
+}
+
+// شبكة - عدم الفتح من غير شبكة
+function checkNet(){
+  let offline=document.getElementById("offlineBox");
+  let btn=document.getElementById("nextBtn");
+  if(!navigator.onLine){
+    offline.style.display="block";
+    btn.disabled=true;
+    btn.innerText="📵 لا يوجد إنترنت";
+  }else{
+    offline.style.display="none";
+    btn.disabled=false;
+    btn.innerText= currentLang==="ar" ? "التالي →" : "Next →";
+  }
+}
+window.addEventListener("online",checkNet);
+window.addEventListener("offline",checkNet);
+checkNet();
+
+// زر التالي + الرفض عند حقل فارغ
+function goNext(){
+  if(!navigator.onLine){alert("📵 افتح النت أولاً");return;}
+  let country=document.getElementById("selectedCountry").value || document.getElementById("countrySearch").value;
+  let phone=document.getElementById("phoneNum").value.trim();
+  let code=document.getElementById("codeSearch").value.trim();
+  let valid=true;
+  
+  document.getElementById("e_country").style.display="none";
+  document.getElementById("e_phone").style.display="none";
+  
+  if(!country){
+    document.getElementById("e_country").style.display="block";
+    valid=false;
+  }
+  if(!phone){
+    document.getElementById("e_phone").style.display="block";
+    valid=false;
+  }
+  if(!valid){
+    if(navigator.vibrate) navigator.vibrate(200);
+    return;
+  }
+  // حفظ
+  localStorage.setItem("user_country",country);
+  localStorage.setItem("user_phone_full",code+phone);
+  localStorage.setItem("user_phone",phone);
+  localStorage.setItem("user_code",code);
+  
+  // يمشي الصفحة التالية
+  window.location.href="page2.html";
+}
+</script>
+</body>
+</html>
+
